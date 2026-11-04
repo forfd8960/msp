@@ -56,6 +56,14 @@ pub enum Token {
     GtEq,
     /// ==
     Eq,
+    /// !=
+    NotEq,
+    /// &&
+    And,
+    /// ||
+    Or,
+    /// !
+    Bang,
 
     /// =
     Assign,

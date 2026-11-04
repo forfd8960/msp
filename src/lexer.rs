@@ -82,6 +82,14 @@ impl Lexer {
                 }
                 Ok(Token::Assign)
             }
+            '!' => {
+                if self.is_match('=') {
+                    self.advance();
+                    return Ok(Token::NotEq);
+                }
+
+                Ok(Token::Bang)
+            }
             '"' => self.parse_string(),
             _ => {
                 if cur_ch.is_ascii_digit() {

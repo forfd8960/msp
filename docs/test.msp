@@ -10,6 +10,18 @@ names = ["alice", "bob", "jane"];
 
 print(x, y, z, good, bad);
 
+if x != 1 {
+    print("not one");
+}
+
+if x == 1 && good {
+    print("good");
+}
+
+if x == 0 || bad {
+    print("not good");
+}
+
 fn fib(n) {
     if n == 1 || n == 2 {
         return 1;
