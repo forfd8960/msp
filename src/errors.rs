@@ -2,8 +2,11 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum LexerErrors {
-    #[error("{0}")]
-    UnknowToken(String),
+    #[error("unknow char: {0}")]
+    UnknowChar(char),
+
+    #[error("no tokens")]
+    NoTokens,
 
     #[error("{0}")]
     UnterminatedString(String),
@@ -29,10 +32,10 @@ pub enum EvalErrors {
 
 #[derive(Debug, Error)]
 pub enum MSPErrors {
-    #[error("lexer error")]
-    LexerErrors,
-    #[error("parser error")]
-    ParserErrors,
-    #[error("eval error")]
-    EvalErrors,
+    #[error(transparent)]
+    Lexer(#[from] LexerErrors),
+    #[error(transparent)]
+    Parser(#[from] ParserErrors),
+    #[error(transparent)]
+    Eval(#[from] EvalErrors),
 }

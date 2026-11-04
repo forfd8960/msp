@@ -79,4 +79,8 @@ pub enum Token {
     Comma,
     /// ;
     Semicolon,
+    /// \t \n ' '
+    WhiteSpace,
+    /// eof
+    Eof,
 }

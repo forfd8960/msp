@@ -1,12 +1,25 @@
-use msp::Token;
+use anyhow::anyhow;
+use msp::Lexer;
 
 fn main() -> anyhow::Result<()> {
     println!("My Simple Programming Language");
 
-    let gt = Token::GreatThan;
-    println!(">: {:?}", gt);
+    let mut rl = rustyline::DefaultEditor::new()?;
 
-    let gteq = Token::GtEq;
-    println!(">=: {:?}", gteq);
-    Ok(())
+    loop {
+        let readline = rl.readline(">> ");
+        match readline {
+            Ok(line) => {
+                println!("Line: {:?}", line);
+                let input = line.chars().collect::<Vec<char>>();
+                let mut lexer = Lexer::new(input);
+                println!("tokens: {:?}", lexer.lex()?)
+            }
+
+            Err(e) => {
+                println!("No input");
+                return Err(anyhow!(e));
+            }
+        }
+    }
 }

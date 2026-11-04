@@ -10,6 +10,14 @@ names = ["alice", "bob", "jane"];
 
 print(x, y, z, good, bad);
 
+fn fib(n) {
+    if n == 1 || n == 2 {
+        return 1;
+    }
+
+    fib(n - 2) + fib(n - 1)
+}
+
 fn filter(arr) {
     new_arr = [];
     for idx = 0; idx < arrlen(arr); idx++ {

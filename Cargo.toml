@@ -6,4 +6,5 @@ description = "My Simple Programming Language"
 
 [dependencies]
 anyhow = "1.0.104"
+rustyline = "19.0.0"
 thiserror = "2.0.21"
