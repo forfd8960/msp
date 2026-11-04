@@ -1,0 +1,9 @@
+[package]
+name = "msp"
+version = "0.1.0"
+edition = "2024"
+description = "My Simple Programming Language"
+
+[dependencies]
+anyhow = "1.0.104"
+thiserror = "2.0.21"
