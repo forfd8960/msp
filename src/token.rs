@@ -60,10 +60,10 @@ pub enum Token {
     /// =
     Assign,
 
-    /// (
-    LeftParent,
-    /// )
-    RightParent,
+    /// ( left parenthesis
+    LeftParen,
+    /// ) Right parenthesis
+    RightParen,
 
     /// [
     LeftBracket,
@@ -83,4 +83,23 @@ pub enum Token {
     WhiteSpace,
     /// eof
     Eof,
+}
+
+pub fn build_kw(ident: &str) -> Option<KW> {
+    match ident {
+        "fn" => Some(KW::Function),
+        "if" => Some(KW::If),
+        "else" => Some(KW::Else),
+        "for" => Some(KW::For),
+        "while" => Some(KW::While),
+        "return" => Some(KW::Return),
+        "continue" => Some(KW::Continue),
+        "break" => Some(KW::Break),
+        "print" => Some(KW::Print),
+        "strlen" => Some(KW::StrLen),
+        "arrlen" => Some(KW::ArrLen),
+        "append" => Some(KW::Append),
+        "null" => Some(KW::Null),
+        _ => None,
+    }
 }

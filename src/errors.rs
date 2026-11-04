@@ -1,3 +1,5 @@
+use std::num::ParseIntError;
+
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -8,8 +10,11 @@ pub enum LexerErrors {
     #[error("no tokens")]
     NoTokens,
 
-    #[error("{0}")]
-    UnterminatedString(String),
+    #[error("unterminated string")]
+    UnterminatedString,
+
+    #[error("invalid number")]
+    InvalidNumber(#[from] ParseIntError),
 }
 
 #[derive(Debug, Error)]

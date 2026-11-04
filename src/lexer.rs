@@ -1,4 +1,4 @@
-use crate::{MSPResult, Token, errors::LexerErrors};
+use crate::{MSPResult, Token, build_kw, errors::LexerErrors};
 
 #[derive(Debug)]
 pub struct Lexer {
@@ -54,6 +54,12 @@ impl Lexer {
             '*' => Ok(Token::Mul),
             '/' => Ok(Token::Div),
             '%' => Ok(Token::Mod),
+            '(' => Ok(Token::LeftParen),
+            ')' => Ok(Token::RightParen),
+            '[' => Ok(Token::LeftBracket),
+            ']' => Ok(Token::RightBracket),
+            '{' => Ok(Token::LeftBrace),
+            '}' => Ok(Token::RightBrace),
             '<' => {
                 if self.is_match('=') {
                     self.advance();
@@ -76,8 +82,68 @@ impl Lexer {
                 }
                 Ok(Token::Assign)
             }
-            _ => Err(LexerErrors::UnknowChar(cur_ch).into()),
+            '"' => self.parse_string(),
+            _ => {
+                if cur_ch.is_ascii_digit() {
+                    return self.parse_number();
+                } else if cur_ch.is_alphabetic() {
+                    return self.parse_ident();
+                }
+                Err(LexerErrors::UnknowChar(cur_ch).into())
+            }
         }
+    }
+
+    fn parse_string(&mut self) -> MSPResult<Token> {
+        let mut end = false;
+        while let Some(c) = self.peek() {
+            if c == '"' {
+                end = true;
+                break;
+            }
+            self.advance();
+        }
+
+        if !end && self.is_end() {
+            return Err(LexerErrors::UnterminatedString.into());
+        }
+
+        self.advance();
+        let s = String::from_iter(&self.chars[self.start + 1..self.current - 1]);
+
+        Ok(Token::Str(s))
+    }
+
+    fn parse_number(&mut self) -> MSPResult<Token> {
+        while let Some(c) = self.peek() {
+            if !c.is_ascii_digit() {
+                break;
+            }
+            self.advance();
+        }
+
+        match String::from_iter(&self.chars[self.start..self.current]).parse::<i64>() {
+            Ok(n) => Ok(Token::Int(n)),
+            Err(e) => Err(LexerErrors::InvalidNumber(e).into()),
+        }
+    }
+
+    fn parse_ident(&mut self) -> MSPResult<Token> {
+        while let Some(c) = self.peek() {
+            if c.is_ascii_alphanumeric() || c.eq(&'_') {
+                self.advance();
+                continue;
+            }
+
+            break;
+        }
+
+        let ident = String::from_iter(&self.chars[self.start..self.current]);
+        if let Some(kw) = build_kw(&ident) {
+            return Ok(Token::KeyWord(kw));
+        }
+
+        Ok(Token::Ident(ident))
     }
 
     fn is_end(&self) -> bool {

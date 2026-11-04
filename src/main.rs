@@ -13,7 +13,10 @@ fn main() -> anyhow::Result<()> {
                 println!("Line: {:?}", line);
                 let input = line.chars().collect::<Vec<char>>();
                 let mut lexer = Lexer::new(input);
-                println!("tokens: {:?}", lexer.lex()?)
+                match lexer.lex() {
+                    Ok(tokens) => println!("tokens: {:?}", tokens),
+                    Err(e) => eprintln!("lexer error: {e}"),
+                }
             }
 
             Err(e) => {
