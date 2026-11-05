@@ -1,112 +1,437 @@
-#[derive(Debug, Clone, PartialEq)]
-pub struct Program {
-    pub nodes: Vec<Node>,
+use crate::{
+    KW, MSPErrors, MSPResult, Token,
+    ast::{BinOp, BuiltIn, Expr, Literal, Node, Program, Stmt, UnaryOp},
+    errors::ParserErrors,
+};
+
+pub struct Parser {
+    pub tokens: Vec<Token>,
+    pub start: usize,
+    pub current: usize,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Node {
-    pub stmt: Stmt,
-    pub line: usize,
-    pub col: usize,
+pub fn new(tokens: Vec<Token>) -> Parser {
+    Parser {
+        tokens,
+        start: 0,
+        current: 0,
+    }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct Block {
-    pub stmts: Vec<Stmt>,
+impl Parser {
+    pub fn parse(&mut self) -> MSPResult<Program> {
+        let mut nodes = Vec::new();
+        loop {
+            if self.is_end() {
+                break;
+            }
+
+            match self.parse_stmt() {
+                Ok(stmt) => {
+                    println!("parsed stmt: {:?}", stmt);
+                    nodes.push(Node {
+                        stmt,
+                        line: 0,
+                        col: 0,
+                    });
+                }
+                Err(MSPErrors::Parser(ParserErrors::EofToken)) => break,
+                Err(e) => return Err(e),
+            }
+        }
+
+        Ok(Program { nodes })
+    }
+
+    fn parse_stmt(&mut self) -> MSPResult<Stmt> {
+        let cur = self.peek().ok_or_else(|| ParserErrors::EofToken)?;
+        match cur {
+            Token::KeyWord(KW::Function) => self.parse_func(),
+            Token::KeyWord(KW::If) => self.parse_if(),
+            Token::KeyWord(KW::For) => self.parse_for(),
+            Token::KeyWord(KW::While) => self.parse_while(),
+            Token::KeyWord(KW::Return) => self.parse_return(),
+            Token::LeftBrace => self.parse_block(),
+            Token::KeyWord(KW::Break) => {
+                self.advance();
+                Ok(Stmt::Break)
+            }
+            Token::KeyWord(KW::Continue) => {
+                self.advance();
+                Ok(Stmt::Continue)
+            }
+            _ => Ok(Stmt::Expr(Box::new(self.parse_expression()?))),
+        }
+    }
+
+    fn is_end(&self) -> bool {
+        self.current >= self.tokens.len()
+    }
+
+    fn is_match(&self, tk: Token) -> bool {
+        if self.is_end() {
+            return false;
+        }
+
+        if let Some(token) = self.peek() {
+            if token.eq(&tk) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn consume(&mut self, t: Token) -> MSPResult<()> {
+        if self.is_end() {
+            return Err(ParserErrors::EofToken.into());
+        }
+
+        if let Some(token) = self.peek() {
+            if token.eq(&t) {
+                self.advance();
+                return Ok(());
+            } else {
+                return Err(
+                    ParserErrors::ExpectToken(format!("{:?}", t), format!("{:?}", token)).into(),
+                );
+            }
+        } else {
+            return Err(ParserErrors::EofToken.into());
+        }
+    }
+
+    fn peek(&self) -> Option<Token> {
+        if self.is_end() {
+            None
+        } else {
+            Some(self.tokens[self.current].clone())
+        }
+    }
+
+    fn advance(&mut self) -> Option<Token> {
+        if self.is_end() {
+            None
+        } else {
+            self.current += 1;
+            Some(self.tokens[self.current - 1].clone())
+        }
+    }
+
+    fn parse_func(&mut self) -> MSPResult<Stmt> {
+        self.advance();
+        todo!()
+    }
+
+    /// { stmts }
+    fn parse_block(&mut self) -> MSPResult<Stmt> {
+        todo!()
+    }
+
+    fn parse_if(&mut self) -> MSPResult<Stmt> {
+        self.advance();
+        todo!()
+    }
+
+    fn parse_for(&mut self) -> MSPResult<Stmt> {
+        self.advance();
+        todo!()
+    }
+
+    fn parse_while(&mut self) -> MSPResult<Stmt> {
+        self.advance();
+        todo!()
+    }
+
+    fn parse_return(&mut self) -> MSPResult<Stmt> {
+        self.advance();
+        todo!()
+    }
+
+    /// parse assign and other expression
+    fn parse_expression(&mut self) -> MSPResult<Expr> {
+        println!("parsing expression...");
+
+        let target = self.parse_or()?;
+        if !self.is_match(Token::Assign) {
+            return Ok(target);
+        }
+
+        self.advance();
+        if !matches!(target, Expr::Ident(_) | Expr::Index { .. }) {
+            return Err(ParserErrors::InvalidAssignTarget.into());
+        }
+
+        let value = self.parse_expression()?;
+        Ok(Expr::Assign {
+            target: Box::new(target),
+            value: Box::new(value),
+        })
+    }
+
+    /// parse ||
+    fn parse_or(&mut self) -> MSPResult<Expr> {
+        println!("parsing or...");
+        let mut left = self.parse_and()?;
+        loop {
+            if self.is_end() || !self.is_match(Token::Or) {
+                break;
+            }
+
+            self.consume(Token::Or)?;
+            let right = self.parse_and()?;
+            left = Expr::BinaryExpr {
+                op: BinOp::Or,
+                left: Box::new(left),
+                right: Box::new(right),
+            };
+        }
+
+        Ok(left)
+    }
+
+    fn parse_and(&mut self) -> MSPResult<Expr> {
+        println!("parsing and...");
+
+        let mut left = self.parse_equality()?;
+        loop {
+            if self.is_end() || !self.is_match(Token::And) {
+                break;
+            }
+
+            self.consume(Token::And)?;
+
+            let right = self.parse_equality()?;
+            left = Expr::BinaryExpr {
+                op: BinOp::And,
+                left: Box::new(left),
+                right: Box::new(right),
+            };
+        }
+
+        Ok(left)
+    }
+
+    /// parse == and !=
+    fn parse_equality(&mut self) -> MSPResult<Expr> {
+        println!("parse equality...");
+
+        let left = self.parse_comparison()?;
+
+        if self.is_match(Token::Eq) || self.is_match(Token::NotEq) {
+            let op = self.advance().unwrap();
+
+            let right = self.parse_comparison()?;
+            let binop = match op {
+                Token::Eq => BinOp::Eq,
+                Token::NotEq => BinOp::NotEq,
+                _ => return Ok(left),
+            };
+
+            return Ok(Expr::BinaryExpr {
+                op: binop,
+                left: Box::new(left),
+                right: Box::new(right),
+            });
+        }
+
+        Ok(left)
+    }
+
+    /// parse > >= < <=
+    fn parse_comparison(&mut self) -> MSPResult<Expr> {
+        let left = self.parse_term()?;
+        if self.peek().is_some_and(|v| {
+            matches!(
+                v,
+                Token::LessThan | Token::LtEq | Token::GreatThan | Token::GtEq
+            )
+        }) {
+            let op = self.advance().unwrap();
+            let right = self.parse_term()?;
+
+            let binop = match op {
+                Token::LessThan => BinOp::Lt,
+                Token::LtEq => BinOp::LtEq,
+                Token::GtEq => BinOp::GtEq,
+                Token::GreatThan => BinOp::Gt,
+                _ => return Ok(left),
+            };
+
+            return Ok(Expr::BinaryExpr {
+                op: binop,
+                left: Box::new(left),
+                right: Box::new(right),
+            });
+        }
+
+        Ok(left)
+    }
+
+    // parse + -
+    fn parse_term(&mut self) -> MSPResult<Expr> {
+        let mut left = self.parse_factor()?;
+        loop {
+            if !self
+                .peek()
+                .is_some_and(|v| matches!(v, Token::Plus | Token::Minus))
+            {
+                break;
+            }
+
+            let op = self.advance().unwrap();
+            let right = self.parse_factor()?;
+
+            let binop = match op {
+                Token::Plus => BinOp::Plus,
+                Token::Minus => BinOp::Minus,
+                _ => return Ok(left),
+            };
+
+            left = Expr::BinaryExpr {
+                op: binop,
+                left: Box::new(left),
+                right: Box::new(right),
+            };
+        }
+
+        Ok(left)
+    }
+
+    /// parse * / %
+    fn parse_factor(&mut self) -> MSPResult<Expr> {
+        let mut left = self.parse_unary()?;
+        loop {
+            if !self
+                .peek()
+                .is_some_and(|v| matches!(v, Token::Mul | Token::Div | Token::Mod))
+            {
+                break;
+            }
+
+            let op = self.advance().unwrap();
+            let right = self.parse_unary()?;
+
+            let binop = match op {
+                Token::Div => BinOp::Div,
+                Token::Mul => BinOp::Mul,
+                Token::Mod => BinOp::Mod,
+                _ => return Ok(left),
+            };
+
+            left = Expr::BinaryExpr {
+                op: binop,
+                left: Box::new(left),
+                right: Box::new(right),
+            };
+        }
+
+        Ok(left)
+    }
+
+    /// parse +xxx -xxx !xx
+    fn parse_unary(&mut self) -> MSPResult<Expr> {
+        if !self
+            .peek()
+            .is_some_and(|v| matches!(v, Token::Plus | Token::Minus | Token::Bang))
+        {
+            return self.parse_postfix();
+        }
+
+        let op = self.advance().unwrap();
+        let right = self.parse_postfix()?;
+
+        let unaryop = match op {
+            Token::Plus => UnaryOp::Plus,
+            Token::Minus => UnaryOp::Minus,
+            Token::Bang => UnaryOp::Bang,
+            _ => return self.parse_postfix(),
+        };
+
+        Ok(Expr::Unary {
+            op: unaryop,
+            expr: Box::new(right),
+        })
+    }
+
+    /// parse func calls: x();
+    /// index: arr[i]
+    /// postfix: i++
+    fn parse_postfix(&mut self) -> MSPResult<Expr> {
+        let pri = self.parse_primary()?;
+
+        if self
+            .peek()
+            .is_some_and(|v| matches!(v, Token::LeftParen | Token::LeftBracket | Token::Increment))
+        {
+            match self.advance().unwrap() {
+                Token::LeftParen => self.parse_fn_call(pri),
+                Token::LeftBracket => self.parse_index(pri),
+                Token::Increment => Ok(Expr::Increment {
+                    target: Box::new(pri),
+                }),
+                _ => return self.parse_primary(),
+            }
+        } else {
+            Ok(pri)
+        }
+    }
+
+    fn parse_fn_call(&mut self, expr: Expr) -> MSPResult<Expr> {
+        let mut params = Vec::new();
+        params.push(self.parse_expression()?);
+        loop {
+            if self.is_match(Token::RightParen) {
+                break;
+            }
+
+            self.consume(Token::Comma)?;
+            params.push(self.parse_expression()?);
+        }
+        self.consume(Token::RightParen)?;
+
+        Ok(Expr::FuncCall {
+            fn_name: Box::new(expr),
+            params,
+        })
+    }
+
+    fn parse_index(&mut self, expr: Expr) -> MSPResult<Expr> {
+        let idx = self.parse_expression()?;
+        self.consume(Token::RightBracket)?;
+        Ok(Expr::Index {
+            target: Box::new(expr),
+            index: Box::new(idx),
+        })
+    }
+
+    /// parse string, number, boolean literals
+    /// identifiers
+    /// arrays
+    fn parse_primary(&mut self) -> MSPResult<Expr> {
+        if let Some(tk) = self.advance() {
+            let expr = match tk {
+                Token::Str(s) => Expr::Literal(Literal::Str(s)),
+                Token::Int(n) => Expr::Literal(Literal::Number(n)),
+                Token::Boolean(b) => Expr::Literal(Literal::Boolean(b)),
+                Token::Ident(s) => Expr::Ident(s),
+                Token::KeyWord(kw) => Expr::BuiltIn(parse_builtin(kw)?),
+                _ => return Err(ParserErrors::UnknowPrimary.into()),
+            };
+
+            return Ok(expr);
+        }
+
+        Err(ParserErrors::EofToken.into())
+    }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Stmt {
-    Expr(Box<Expr>),
-    Assign {
-        target: Box<Expr>,
-        value: Box<Expr>,
-    },
-    If {
-        cond: Box<Expr>,
-        then: Block,
-        else_body: Option<Block>,
-    },
-    For {
-        init: Box<Stmt>,
-        cond: Box<Expr>,
-        update: Box<Stmt>,
-        body: Block,
-    },
-    While {
-        cond: Box<Expr>,
-        body: Block,
-    },
-    Func {
-        name: String,
-        params: Vec<String>,
-        body: Block,
-    },
-    Return {
-        value: Option<Expr>,
-    },
-    Break,
-    Continue,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum BinOp {
-    Plus,
-    Minus,
-    Mul,
-    Div,
-    Mod,
-    And,
-    Or,
-    Lt,
-    LtEq,
-    Gt,
-    GtEq,
-    Eq,
-    NotEq,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum UnaryOp {
-    Plus,
-    Minus,
-    Bang,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Expr {
-    Ident(String),
-    Literal(Literal),
-    /// [1, 2, "c"]
-    ArrLiteral(Vec<Expr>),
-
-    FuncCall {
-        fn_name: String,
-        params: Vec<Expr>,
-    },
-
-    BinaryExpr {
-        op: BinOp,
-        left: Box<Expr>,
-        right: Box<Expr>,
-    },
-
-    Unary {
-        op: UnaryOp,
-        expr: Box<Expr>,
-    },
-
-    /// arr[i], arr[x+1]
-    Index {
-        target: Box<Expr>,
-        index: Box<Expr>,
-    },
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum Literal {
-    Str(String),
-    Number(i64),
-    Boolean(bool),
-    Null,
+fn parse_builtin(kw: KW) -> MSPResult<BuiltIn> {
+    match kw {
+        KW::Print => Ok(BuiltIn::Print),
+        KW::StrLen => Ok(BuiltIn::StrLen),
+        KW::ArrLen => Ok(BuiltIn::ArrLen),
+        KW::Append => Ok(BuiltIn::Append),
+        KW::Null => Ok(BuiltIn::Null),
+        _ => Err(ParserErrors::UnknowBuiltIn.into()),
+    }
 }

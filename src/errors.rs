@@ -2,6 +2,8 @@ use std::num::ParseIntError;
 
 use thiserror::Error;
 
+use crate::Token;
+
 #[derive(Debug, Error)]
 pub enum LexerErrors {
     #[error("unknow char: {0}")]
@@ -19,11 +21,22 @@ pub enum LexerErrors {
 
 #[derive(Debug, Error)]
 pub enum ParserErrors {
-    #[error("{0}")]
-    UnknowToken(String),
+    #[error("expect {0}, but get: {1}")]
+    ExpectToken(String, String),
 
-    #[error("{0}")]
-    UnterminatedString(String),
+    #[error("no tokens")]
+    EofToken,
+
+    #[error("invalid assign target")]
+    InvalidAssignTarget,
+
+    #[error("invalid binary expr: {0}")]
+    InvalidBinary(String),
+
+    #[error("unknown builtin")]
+    UnknowBuiltIn,
+    #[error("unknown primary")]
+    UnknowPrimary,
 }
 
 #[derive(Debug, Error)]

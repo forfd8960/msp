@@ -87,4 +87,32 @@ fn is_even(n) {
     }
 }
 
+fn split_whitespace(text) {
+    words = [];
+    word = "";
+
+    for idx = 0; idx < strlen(text); idx++ {
+        ch = text[idx];
+        if ch == " " || ch == "\t" || ch == "\n" || ch == "\r" {
+            if strlen(word) > 0 {
+                append(words, word);
+                word = "";
+            }
+        } else {
+            word = word + ch;
+        }
+    }
+
+    if strlen(word) > 0 {
+        append(words, word);
+    }
+
+    return words;
+}
+
 print(large(10, 100));
+print(split_whitespace("  hello   world  "));
+print(split_whitespace("hello\tworld\nfrom\rmsp"));
+print(split_whitespace("hello"));
+print(split_whitespace(""));
+print(split_whitespace(" \t\n\r "));
