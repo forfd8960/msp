@@ -1,6 +1,6 @@
 use crate::{
     KW, MSPResult, Token,
-    ast::{BinOp, BuiltIn, Expr, Literal, Node, Program, Stmt, UnaryOp},
+    ast::{BinOp, Block, BuiltIn, Expr, Literal, Node, Program, Stmt, UnaryOp},
     errors::ParserErrors,
 };
 
@@ -28,7 +28,6 @@ impl Parser {
 
             match self.parse_stmt() {
                 Ok(stmt) => {
-                    println!("parsed stmt: {:?}", stmt);
                     nodes.push(Node {
                         stmt,
                         line: 0,
@@ -50,16 +49,22 @@ impl Parser {
             Token::KeyWord(KW::For) => self.parse_for(),
             Token::KeyWord(KW::While) => self.parse_while(),
             Token::KeyWord(KW::Return) => self.parse_return(),
-            Token::LeftBrace => self.parse_block(),
+            Token::LeftBrace => Ok(Stmt::Block(self.parse_block()?)),
             Token::KeyWord(KW::Break) => {
                 self.advance();
+                self.consume(Token::Semicolon)?;
                 Ok(Stmt::Break)
             }
             Token::KeyWord(KW::Continue) => {
                 self.advance();
+                self.consume(Token::Semicolon)?;
                 Ok(Stmt::Continue)
             }
-            _ => Ok(Stmt::Expr(Box::new(self.parse_expression()?))),
+            _ => {
+                let expr = self.parse_expression()?;
+                self.consume(Token::Semicolon)?;
+                Ok(Stmt::Expr(Box::new(expr)))
+            }
         }
     }
 
@@ -118,32 +123,106 @@ impl Parser {
 
     fn parse_func(&mut self) -> MSPResult<Stmt> {
         self.advance();
-        todo!()
+
+        let name = self.advance().ok_or_else(|| ParserErrors::EofToken)?;
+        self.consume(Token::LeftParen)?;
+
+        let mut params = Vec::new();
+        loop {
+            if self.is_match(Token::RightParen) {
+                break;
+            }
+
+            params.push(self.advance().ok_or_else(|| ParserErrors::EofToken)?);
+            if self.is_match(Token::RightParen) {
+                break;
+            }
+
+            self.consume(Token::Comma)?;
+        }
+
+        self.consume(Token::RightParen)?;
+        Ok(Stmt::Func {
+            name,
+            params,
+            body: self.parse_block()?,
+        })
     }
 
     /// { stmts }
-    fn parse_block(&mut self) -> MSPResult<Stmt> {
-        todo!()
+    fn parse_block(&mut self) -> MSPResult<Block> {
+        let mut stmts = Vec::new();
+        self.consume(Token::LeftBrace)?;
+        loop {
+            if self.is_match(Token::RightBrace) {
+                break;
+            }
+
+            stmts.push(self.parse_stmt()?);
+        }
+        self.consume(Token::RightBrace)?;
+        Ok(Block { stmts })
     }
 
     fn parse_if(&mut self) -> MSPResult<Stmt> {
         self.advance();
-        todo!()
+        let mut else_block = None;
+        let cond = self.parse_expression()?;
+        let then = self.parse_block()?;
+        if self.is_match(Token::KeyWord(KW::Else)) {
+            self.advance();
+            else_block = Some(self.parse_block()?);
+        }
+
+        Ok(Stmt::If {
+            cond: Box::new(cond),
+            then,
+            else_body: else_block,
+        })
     }
 
     fn parse_for(&mut self) -> MSPResult<Stmt> {
         self.advance();
-        todo!()
+        // for var init
+        let var_init = self.parse_expression()?;
+        self.consume(Token::Semicolon)?;
+
+        let cond = self.parse_expression()?;
+        self.consume(Token::Semicolon)?;
+
+        let update = self.parse_expression()?;
+        let body = self.parse_block()?;
+
+        Ok(Stmt::For {
+            init: Box::new(var_init),
+            cond: Box::new(cond),
+            update: Box::new(update),
+            body,
+        })
     }
 
     fn parse_while(&mut self) -> MSPResult<Stmt> {
         self.advance();
-        todo!()
+        let cond = self.parse_expression()?;
+        let body = self.parse_block()?;
+
+        Ok(Stmt::While {
+            cond: Box::new(cond),
+            body: body,
+        })
     }
 
     fn parse_return(&mut self) -> MSPResult<Stmt> {
         self.advance();
-        todo!()
+
+        if self.is_match(Token::Semicolon) {
+            self.advance();
+            Ok(Stmt::Return { value: None })
+        } else {
+            let val = self.parse_expression()?;
+            self.consume(Token::Semicolon)?;
+            Ok(Stmt::Return { value: Some(val) })
+        }
     }
 
     /// parse assign and other expression
@@ -419,20 +498,7 @@ impl Parser {
                     self.consume(Token::RightParen)?;
                     expr
                 }
-                Token::LeftBracket => {
-                    let mut elements = Vec::new();
-                    while !self.is_match(Token::RightBracket) {
-                        elements.push(self.parse_expression()?);
-                        if self.is_match(Token::RightBracket) {
-                            break;
-                        }
-
-                        self.consume(Token::Comma)?;
-                    }
-
-                    self.consume(Token::RightBracket)?;
-                    Expr::ArrLiteral(elements)
-                }
+                Token::LeftBracket => self.parse_array()?,
                 Token::KeyWord(kw) => Expr::BuiltIn(parse_builtin(kw)?),
                 _ => return Err(ParserErrors::UnknowPrimary.into()),
             };
@@ -441,6 +507,21 @@ impl Parser {
         }
 
         Err(ParserErrors::EofToken.into())
+    }
+
+    fn parse_array(&mut self) -> MSPResult<Expr> {
+        let mut elements = Vec::new();
+        while !self.is_match(Token::RightBracket) {
+            elements.push(self.parse_expression()?);
+            if self.is_match(Token::RightBracket) {
+                break;
+            }
+
+            self.consume(Token::Comma)?;
+        }
+
+        self.consume(Token::RightBracket)?;
+        Ok(Expr::ArrLiteral(elements))
     }
 }
 

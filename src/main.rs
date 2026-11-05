@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use msp::{
     Lexer,
-    parser::{self, Parser},
+    parser::{self},
 };
 
 fn main() -> anyhow::Result<()> {

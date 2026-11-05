@@ -27,7 +27,7 @@ fn fib(n) {
         return 1;
     }
 
-    fib(n - 2) + fib(n - 1)
+    return fib(n - 2) + fib(n - 1);
 }
 
 fn filter(arr) {
@@ -67,7 +67,7 @@ fn print_nums(arr, n, end) {
 
 fn large(x, y) {
     if x > y {
-        return x
+        return x;
     } else {
         return y;
     }

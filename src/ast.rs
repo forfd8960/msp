@@ -1,4 +1,4 @@
-use crate::KW;
+use crate::Token;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Program {
@@ -20,15 +20,16 @@ pub struct Block {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
     Expr(Box<Expr>),
+    Block(Block),
     If {
         cond: Box<Expr>,
         then: Block,
         else_body: Option<Block>,
     },
     For {
-        init: Box<Stmt>,
+        init: Box<Expr>,
         cond: Box<Expr>,
-        update: Box<Stmt>,
+        update: Box<Expr>,
         body: Block,
     },
     While {
@@ -36,8 +37,8 @@ pub enum Stmt {
         body: Block,
     },
     Func {
-        name: String,
-        params: Vec<String>,
+        name: Token,
+        params: Vec<Token>,
         body: Block,
     },
     Return {

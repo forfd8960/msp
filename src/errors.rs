@@ -2,8 +2,6 @@ use std::num::ParseIntError;
 
 use thiserror::Error;
 
-use crate::Token;
-
 #[derive(Debug, Error)]
 pub enum LexerErrors {
     #[error("unknow char: {0}")]
