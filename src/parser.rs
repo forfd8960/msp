@@ -1,5 +1,5 @@
 use crate::{
-    KW, MSPErrors, MSPResult, Token,
+    KW, MSPResult, Token,
     ast::{BinOp, BuiltIn, Expr, Literal, Node, Program, Stmt, UnaryOp},
     errors::ParserErrors,
 };
@@ -35,7 +35,6 @@ impl Parser {
                         col: 0,
                     });
                 }
-                Err(MSPErrors::Parser(ParserErrors::EofToken)) => break,
                 Err(e) => return Err(e),
             }
         }
@@ -407,6 +406,7 @@ impl Parser {
     /// parse string, number, boolean literals
     /// identifiers
     /// arrays
+    /// parenthesized expressions
     fn parse_primary(&mut self) -> MSPResult<Expr> {
         if let Some(tk) = self.advance() {
             let expr = match tk {
@@ -414,6 +414,25 @@ impl Parser {
                 Token::Int(n) => Expr::Literal(Literal::Number(n)),
                 Token::Boolean(b) => Expr::Literal(Literal::Boolean(b)),
                 Token::Ident(s) => Expr::Ident(s),
+                Token::LeftParen => {
+                    let expr = self.parse_expression()?;
+                    self.consume(Token::RightParen)?;
+                    expr
+                }
+                Token::LeftBracket => {
+                    let mut elements = Vec::new();
+                    while !self.is_match(Token::RightBracket) {
+                        elements.push(self.parse_expression()?);
+                        if self.is_match(Token::RightBracket) {
+                            break;
+                        }
+
+                        self.consume(Token::Comma)?;
+                    }
+
+                    self.consume(Token::RightBracket)?;
+                    Expr::ArrLiteral(elements)
+                }
                 Token::KeyWord(kw) => Expr::BuiltIn(parse_builtin(kw)?),
                 _ => return Err(ParserErrors::UnknowPrimary.into()),
             };
@@ -433,5 +452,84 @@ fn parse_builtin(kw: KW) -> MSPResult<BuiltIn> {
         KW::Append => Ok(BuiltIn::Append),
         KW::Null => Ok(BuiltIn::Null),
         _ => Err(ParserErrors::UnknowBuiltIn.into()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Lexer, MSPErrors};
+
+    fn number(value: i64) -> Expr {
+        Expr::Literal(Literal::Number(value))
+    }
+
+    fn binary(op: BinOp, left: Expr, right: Expr) -> Expr {
+        Expr::BinaryExpr {
+            op,
+            left: Box::new(left),
+            right: Box::new(right),
+        }
+    }
+
+    #[test]
+    fn parses_grouped_operands() {
+        let tokens = Lexer::new("(1+2) / (9 * 6)".chars().collect())
+            .lex()
+            .unwrap();
+        let mut parser = new(tokens);
+        let program = parser.parse().unwrap();
+
+        assert_eq!(program.nodes.len(), 1);
+        assert_eq!(
+            program.nodes[0].stmt,
+            Stmt::Expr(Box::new(binary(
+                BinOp::Div,
+                binary(BinOp::Plus, number(1), number(2)),
+                binary(BinOp::Mul, number(9), number(6)),
+            )))
+        );
+        assert!(parser.is_end());
+    }
+
+    #[test]
+    fn parses_nested_grouping_with_unary_and_precedence() {
+        let tokens = Lexer::new("-(1 + (2 * 3)) + 4 * 5".chars().collect())
+            .lex()
+            .unwrap();
+        let mut parser = new(tokens);
+        let expr = parser.parse_expression().unwrap();
+
+        assert_eq!(
+            expr,
+            binary(
+                BinOp::Plus,
+                Expr::Unary {
+                    op: UnaryOp::Minus,
+                    expr: Box::new(binary(
+                        BinOp::Plus,
+                        number(1),
+                        binary(BinOp::Mul, number(2), number(3)),
+                    )),
+                },
+                binary(BinOp::Mul, number(4), number(5)),
+            )
+        );
+        assert!(parser.is_end());
+    }
+
+    #[test]
+    fn grouping_requires_a_closing_parenthesis() {
+        for input in ["(1 + 2", "(1 + 2]"] {
+            let tokens = Lexer::new(input.chars().collect()).lex().unwrap();
+            let mut parser = new(tokens);
+            assert!(matches!(
+                parser.parse_expression(),
+                Err(MSPErrors::Parser(ParserErrors::EofToken))
+                    | Err(MSPErrors::Parser(ParserErrors::ExpectToken(_, _)))
+            ));
+            let tokens = Lexer::new(input.chars().collect()).lex().unwrap();
+            assert!(new(tokens).parse().is_err());
+        }
     }
 }

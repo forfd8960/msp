@@ -60,6 +60,22 @@ impl Lexer {
             ']' => Ok(Token::RightBracket),
             '{' => Ok(Token::LeftBrace),
             '}' => Ok(Token::RightBrace),
+            '&' => {
+                if self.is_match('&') {
+                    self.advance();
+                    return Ok(Token::And);
+                } else {
+                    Err(LexerErrors::UnknowChar('&').into())
+                }
+            }
+            '|' => {
+                if self.is_match('|') {
+                    self.advance();
+                    return Ok(Token::Or);
+                } else {
+                    Err(LexerErrors::UnknowChar('|').into())
+                }
+            }
             '<' => {
                 if self.is_match('=') {
                     self.advance();
