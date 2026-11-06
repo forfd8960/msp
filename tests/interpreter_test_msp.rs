@@ -122,3 +122,24 @@ fn character_comparisons_support_equality_and_ordering() {
         call(expression, Value::Literal(Literal::Boolean(expected)));
     }
 }
+
+#[test]
+fn test3_get_largest_returns_six_hundred() {
+    let mut program = parse(include_str!("../docs/test3.msp"));
+    program.nodes.extend(parse("test_result = get_largest(arr);").nodes);
+    let env = Env::new(None);
+    Interpreter::new(env.clone()).execute(&program).unwrap();
+    assert_eq!(env.borrow().get("test_result"), Some(number(600)));
+}
+
+#[test]
+fn assignment_updates_outer_bindings_and_keeps_new_body_variables_local() {
+    let program = parse(
+        "total = 0; for i = 0; i < 3; i++ { temporary = i; total = total + i; }",
+    );
+    let env = Env::new(None);
+    Interpreter::new(env.clone()).execute(&program).unwrap();
+    assert_eq!(env.borrow().get("total"), Some(number(3)));
+    assert_eq!(env.borrow().get("temporary"), None);
+    assert_eq!(env.borrow().get("i"), None);
+}

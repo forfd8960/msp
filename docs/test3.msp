@@ -1,0 +1,21 @@
+x = 123;
+
+if x > 100 {
+    print(x, " great than 100");
+} else {
+    print(x, " less than 100");
+}
+
+fn get_largest(arr) {
+    large = arr[0];
+    for i = 1; i < arrlen(arr); i++ {
+        if large < arr[i] {
+            large = arr[i];
+        }
+    }
+    return large;
+}
+
+arr=[1,3,600,9,8,100];
+
+print(get_largest(arr));

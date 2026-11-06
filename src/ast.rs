@@ -79,21 +79,8 @@ pub enum UnaryOp {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum BuiltIn {
-    /// print
-    Print { params: Vec<Expr> },
-    /// strlen: return the length of a string
-    StrLen { target: Box<Expr> },
-    /// arrlen: return the length of a array
-    ArrLen { arr: String },
-    /// append: append element to an array.
-    Append { target: String, elements: Vec<Expr> },
-}
-
-#[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Ident(String),
-    // BuiltIn(BuiltIn),
     Literal(Literal),
     /// [1, 2, "c"]
     ArrLiteral(Vec<Expr>),

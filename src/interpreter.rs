@@ -312,9 +312,9 @@ impl Interpreter {
                     }
 
                     match self.execute_block(&for_stmt.body, &body_env)? {
-                        Flow::Normal | Flow::Continue => {}
                         Flow::Break => break,
                         Flow::Return(value) => return Ok(Flow::Return(value)),
+                        _ => {}
                     };
                     self.execute_expr(&for_stmt.update, &loop_env)?;
                 }
@@ -333,9 +333,9 @@ impl Interpreter {
             if let Value::Literal(Literal::Boolean(b)) = cond_res {
                 if b {
                     match self.execute_block(&body, &while_env)? {
-                        Flow::Normal | Flow::Continue => {}
                         Flow::Break => break,
                         Flow::Return(value) => return Ok(Flow::Return(value)),
+                        _ => {}
                     }
                 } else {
                     return Ok(Flow::Normal);
@@ -425,9 +425,15 @@ impl Interpreter {
         match target {
             Expr::Ident(id) => {
                 let v = self.execute_expr(val, env)?;
-                env.borrow_mut().store(id.clone(), v.clone());
+                let exists = env.borrow().get(id).is_some();
+                if exists {
+                    env.borrow_mut().assign_existing(id, v.clone())?;
+                } else {
+                    env.borrow_mut().store(id.clone(), v.clone());
+                }
                 Ok(v)
             }
+
             Expr::Index { target, index } => {
                 let name = get_name(target).ok_or_else(|| EvalErrors::RequireIdent)?;
                 let arr = env.borrow().get(&name);
@@ -438,7 +444,9 @@ impl Interpreter {
                     if let Value::Literal(Literal::Number(n)) = idx {
                         let mut new_arr = arr.clone();
                         new_arr[n as usize] = self.execute_expr(val, env)?;
-                        env.borrow_mut().store(name, Value::Array(new_arr.clone()));
+
+                        env.borrow_mut()
+                            .assign_existing(name.as_str(), Value::Array(new_arr.clone()))?;
                         Ok(Value::Array(new_arr))
                     } else {
                         return Err(EvalErrors::InvalidSyntax(format!(
