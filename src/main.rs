@@ -74,7 +74,7 @@ fn run_file(path: &str) -> MSPResult<()> {
                 Ok(program) => {
                     println!("program: {:?}", program);
                     match interpreter.execute(&program) {
-                        Ok(v) => println!("value: {:?}", v),
+                        Ok(_) => println!("run {}", "success"),
                         Err(e) => println!("execute err: {}", e),
                     }
                 }

@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, fmt::Display, rc::Rc};
 
 use crate::{
     MSPResult, Program, Token,
@@ -29,6 +29,47 @@ pub enum Value {
     Literal(Literal),
     Func(Fn),
     Array(Vec<Value>),
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Literal(lit) => match lit {
+                Literal::Boolean(t) => write!(f, "{}", t),
+                Literal::Str(s) => write!(f, "{}", s),
+                Literal::Number(n) => write!(f, "{}", n),
+                Literal::Char(c) => write!(f, "{}", c),
+                Literal::Null => write!(f, "{}", "null"),
+            },
+            Value::Array(arr) => {
+                let mut arr_text = String::new();
+                arr_text.push_str("[");
+                let elements = arr
+                    .iter()
+                    .map(|v| format!("{}", v))
+                    .collect::<Vec<String>>()
+                    .join(",");
+
+                arr_text.push_str(&elements);
+                arr_text.push_str("]");
+                writeln!(f, "{}", arr_text)
+            }
+            Value::Func(func) => {
+                let args = func
+                    .params
+                    .iter()
+                    .map(|p| {
+                        if let Token::Ident(n) = p {
+                            return n.clone();
+                        }
+                        return "px".to_string();
+                    })
+                    .collect::<Vec<String>>()
+                    .join(",");
+                writeln!(f, "{:?}({})", func.name, args)
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -87,7 +128,7 @@ impl Interpreter {
     pub fn execute_print(&mut self, args: &Vec<Expr>, env: &EnvRef) -> MSPResult<Value> {
         for arg in args {
             let val = self.execute_expr(arg, env)?;
-            print!("{:?}", val);
+            print!("{}", val);
         }
         println!();
 
@@ -350,14 +391,13 @@ impl Interpreter {
         }
     }
 
-    fn execute_index(&mut self, env: &EnvRef, target: &Expr, idx: &Expr) -> MSPResult<Value> {
-        let idx_val = self.execute_expr(idx, env)?;
-        let mut idx = 0 as usize;
-        if let Value::Literal(Literal::Number(id)) = idx_val {
-            idx = id as usize;
-        } else {
-            return Err(EvalErrors::InvalidSyntax("idx must be number".into()).into());
-        }
+    fn execute_index(&mut self, env: &EnvRef, target: &Expr, idx_expr: &Expr) -> MSPResult<Value> {
+        let idx_val = self.execute_expr(idx_expr, env)?;
+
+        let idx = match idx_val {
+            Value::Literal(Literal::Number(idx)) => idx,
+            _ => return Err(EvalErrors::InvalidSyntax("idx must be number".into()).into()),
+        } as usize;
 
         match self.execute_expr(target, env)? {
             Value::Array(arr) => {
