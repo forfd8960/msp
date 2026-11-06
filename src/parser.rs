@@ -1,6 +1,6 @@
 use crate::{
     KW, MSPResult, Token,
-    ast::{BinOp, Block, BuiltIn, Expr, Literal, Node, Program, Stmt, UnaryOp},
+    ast::{BinOp, Block, Expr, Fn, For, If, Literal, Node, Program, Stmt, UnaryOp},
     errors::ParserErrors,
 };
 
@@ -142,11 +142,11 @@ impl Parser {
         }
 
         self.consume(Token::RightParen)?;
-        Ok(Stmt::Func {
+        Ok(Stmt::Func(Fn {
             name,
             params,
             body: self.parse_block()?,
-        })
+        }))
     }
 
     /// { stmts }
@@ -174,11 +174,11 @@ impl Parser {
             else_block = Some(self.parse_block()?);
         }
 
-        Ok(Stmt::If {
+        Ok(Stmt::If(If {
             cond: Box::new(cond),
             then,
             else_body: else_block,
-        })
+        }))
     }
 
     fn parse_for(&mut self) -> MSPResult<Stmt> {
@@ -193,12 +193,12 @@ impl Parser {
         let update = self.parse_expression()?;
         let body = self.parse_block()?;
 
-        Ok(Stmt::For {
+        Ok(Stmt::For(For {
             init: Box::new(var_init),
             cond: Box::new(cond),
             update: Box::new(update),
             body,
-        })
+        }))
     }
 
     fn parse_while(&mut self) -> MSPResult<Stmt> {
@@ -499,7 +499,8 @@ impl Parser {
                     expr
                 }
                 Token::LeftBracket => self.parse_array()?,
-                Token::KeyWord(kw) => Expr::BuiltIn(parse_builtin(kw)?),
+                Token::KeyWord(KW::Null) => Expr::Literal(Literal::Null),
+                Token::KeyWord(kw) => Expr::Ident(parse_builtin(kw)?),
                 _ => return Err(ParserErrors::UnknowPrimary.into()),
             };
 
@@ -525,13 +526,12 @@ impl Parser {
     }
 }
 
-fn parse_builtin(kw: KW) -> MSPResult<BuiltIn> {
+fn parse_builtin(kw: KW) -> MSPResult<String> {
     match kw {
-        KW::Print => Ok(BuiltIn::Print),
-        KW::StrLen => Ok(BuiltIn::StrLen),
-        KW::ArrLen => Ok(BuiltIn::ArrLen),
-        KW::Append => Ok(BuiltIn::Append),
-        KW::Null => Ok(BuiltIn::Null),
+        KW::Print => Ok("print".into()),
+        KW::StrLen => Ok("strlen".into()),
+        KW::ArrLen => Ok("arrlen".into()),
+        KW::Append => Ok("append".into()),
         _ => Err(ParserErrors::UnknowBuiltIn.into()),
     }
 }

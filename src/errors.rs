@@ -1,4 +1,4 @@
-use std::num::ParseIntError;
+use std::{io, num::ParseIntError};
 
 use thiserror::Error;
 
@@ -39,11 +39,23 @@ pub enum ParserErrors {
 
 #[derive(Debug, Error)]
 pub enum EvalErrors {
-    #[error("{0}")]
-    UnknowToken(String),
+    #[error("unsupport stmt: {0}")]
+    UnsupportStmt(String),
 
-    #[error("{0}")]
-    UnterminatedString(String),
+    #[error("require ident")]
+    RequireIdent,
+
+    #[error("expect stmt: {0}")]
+    ExpectStmt(String),
+
+    #[error("expect value: {0}")]
+    ExpectValue(String),
+
+    #[error("value not found: {0}")]
+    VlaueNotFound(String),
+
+    #[error("invalid syntax: {0}")]
+    InvalidSyntax(String),
 }
 
 #[derive(Debug, Error)]
@@ -54,4 +66,7 @@ pub enum MSPErrors {
     Parser(#[from] ParserErrors),
     #[error(transparent)]
     Eval(#[from] EvalErrors),
+
+    #[error("io error:{0}")]
+    IOError(#[from] io::Error),
 }

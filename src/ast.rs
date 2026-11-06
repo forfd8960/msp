@@ -13,6 +13,28 @@ pub struct Node {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct Fn {
+    pub name: Token,
+    pub params: Vec<Token>,
+    pub body: Block,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct For {
+    pub init: Box<Expr>,
+    pub cond: Box<Expr>,
+    pub update: Box<Expr>,
+    pub body: Block,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct If {
+    pub cond: Box<Expr>,
+    pub then: Block,
+    pub else_body: Option<Block>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct Block {
     pub stmts: Vec<Stmt>,
 }
@@ -21,29 +43,13 @@ pub struct Block {
 pub enum Stmt {
     Expr(Box<Expr>),
     Block(Block),
-    If {
-        cond: Box<Expr>,
-        then: Block,
-        else_body: Option<Block>,
-    },
-    For {
-        init: Box<Expr>,
-        cond: Box<Expr>,
-        update: Box<Expr>,
-        body: Block,
-    },
-    While {
-        cond: Box<Expr>,
-        body: Block,
-    },
-    Func {
-        name: Token,
-        params: Vec<Token>,
-        body: Block,
-    },
-    Return {
-        value: Option<Expr>,
-    },
+    If(If),
+    For(For),
+    While { cond: Box<Expr>, body: Block },
+
+    Func(Fn),
+
+    Return { value: Option<Expr> },
     Break,
     Continue,
 }
@@ -75,21 +81,19 @@ pub enum UnaryOp {
 #[derive(Debug, Clone, PartialEq)]
 pub enum BuiltIn {
     /// print
-    Print,
+    Print { params: Vec<Expr> },
     /// strlen: return the length of a string
-    StrLen,
+    StrLen { target: Box<Expr> },
     /// arrlen: return the length of a array
-    ArrLen,
+    ArrLen { arr: String },
     /// append: append element to an array.
-    Append,
-    /// null
-    Null,
+    Append { target: String, elements: Vec<Expr> },
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Ident(String),
-    BuiltIn(BuiltIn),
+    // BuiltIn(BuiltIn),
     Literal(Literal),
     /// [1, 2, "c"]
     ArrLiteral(Vec<Expr>),
@@ -129,6 +133,7 @@ pub enum Expr {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
     Str(String),
+    Char(char),
     Number(i64),
     Boolean(bool),
     Null,

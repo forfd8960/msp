@@ -166,8 +166,11 @@ impl Lexer {
         if let Some(kw) = build_kw(&ident) {
             return Ok(Token::KeyWord(kw));
         }
-
-        Ok(Token::Ident(ident))
+        match ident.as_str() {
+            "true" => Ok(Token::Boolean(true)),
+            "false" => Ok(Token::Boolean(false)),
+            _ => Ok(Token::Ident(ident)),
+        }
     }
 
     fn is_end(&self) -> bool {
