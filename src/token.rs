@@ -2,8 +2,6 @@
 pub enum KW {
     /// fn
     Function,
-    /// null
-    Null,
     /// if
     If,
     /// for
@@ -36,6 +34,7 @@ pub enum Token {
     Int(i64),
     Float(f64),
     Boolean(bool),
+    Null,
 
     Plus,
     Minus,
@@ -107,7 +106,6 @@ pub fn build_kw(ident: &str) -> Option<KW> {
         "strlen" => Some(KW::StrLen),
         "arrlen" => Some(KW::ArrLen),
         "append" => Some(KW::Append),
-        "null" => Some(KW::Null),
         _ => None,
     }
 }

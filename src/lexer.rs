@@ -36,7 +36,6 @@ impl Lexer {
 
     fn next_token(&mut self) -> MSPResult<Token> {
         let cur_ch = self.advance().ok_or_else(|| LexerErrors::NoTokens)?;
-        println!("current: {}", cur_ch);
 
         match cur_ch {
             '\t' | '\n' | ' ' => Ok(Token::WhiteSpace),
@@ -166,7 +165,9 @@ impl Lexer {
         if let Some(kw) = build_kw(&ident) {
             return Ok(Token::KeyWord(kw));
         }
+
         match ident.as_str() {
+            "null" => Ok(Token::Null),
             "true" => Ok(Token::Boolean(true)),
             "false" => Ok(Token::Boolean(false)),
             _ => Ok(Token::Ident(ident)),

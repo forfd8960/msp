@@ -6,16 +6,11 @@ use crate::{
 
 pub struct Parser {
     pub tokens: Vec<Token>,
-    pub start: usize,
     pub current: usize,
 }
 
 pub fn new(tokens: Vec<Token>) -> Parser {
-    Parser {
-        tokens,
-        start: 0,
-        current: 0,
-    }
+    Parser { tokens, current: 0 }
 }
 
 impl Parser {
@@ -73,35 +68,18 @@ impl Parser {
     }
 
     fn is_match(&self, tk: Token) -> bool {
-        if self.is_end() {
-            return false;
-        }
-
-        if let Some(token) = self.peek() {
-            if token.eq(&tk) {
-                return true;
-            }
-        }
-        false
+        self.peek().is_some_and(|v| v.eq(&tk))
     }
 
     fn consume(&mut self, t: Token) -> MSPResult<()> {
-        if self.is_end() {
-            return Err(ParserErrors::EofToken.into());
+        let tk = self.peek().ok_or_else(|| ParserErrors::EofToken)?;
+
+        if tk.eq(&t) {
+            self.advance();
+            return Ok(());
         }
 
-        if let Some(token) = self.peek() {
-            if token.eq(&t) {
-                self.advance();
-                return Ok(());
-            } else {
-                return Err(
-                    ParserErrors::ExpectToken(format!("{:?}", t), format!("{:?}", token)).into(),
-                );
-            }
-        } else {
-            return Err(ParserErrors::EofToken.into());
-        }
+        Err(ParserErrors::ExpectToken(format!("{:?}", t), format!("{:?}", tk)).into())
     }
 
     fn peek(&self) -> Option<Token> {
@@ -267,6 +245,7 @@ impl Parser {
         Ok(left)
     }
 
+    /// parse &&
     fn parse_and(&mut self) -> MSPResult<Expr> {
         println!("parsing and...");
 
@@ -318,6 +297,7 @@ impl Parser {
     /// parse > >= < <=
     fn parse_comparison(&mut self) -> MSPResult<Expr> {
         let left = self.parse_term()?;
+
         if self.peek().is_some_and(|v| {
             matches!(
                 v,
@@ -447,7 +427,7 @@ impl Parser {
                 Token::Increment => Ok(Expr::Increment {
                     target: Box::new(pri),
                 }),
-                _ => return self.parse_primary(),
+                _ => return Ok(pri),
             }
         } else {
             Ok(pri)
@@ -499,7 +479,7 @@ impl Parser {
                     expr
                 }
                 Token::LeftBracket => self.parse_array()?,
-                Token::KeyWord(KW::Null) => Expr::Literal(Literal::Null),
+                Token::Null => Expr::Literal(Literal::Null),
                 Token::KeyWord(kw) => Expr::Ident(parse_builtin(kw)?),
                 _ => return Err(ParserErrors::UnknowPrimary.into()),
             };
